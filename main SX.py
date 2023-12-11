@@ -82,7 +82,7 @@ excelDir = ''
 loi = os.listdir(imgDir)
 acceptedFileTypes = ['tif'] # add more as needed 
 opacity = 0.25
-show_plot = True
+show_plot = False
 
 # threshing 
 manual_threshing = True
@@ -108,8 +108,9 @@ for i in loi:
         elif manual_threshing == False:
             thresh = threshOtsu(blur)
         
-        cnts, _ = findContours(thresh)
-        areas = findAreas(cnts)            
+        cnts, hierarchy = findContours(thresh)
+        areas = findAreas(cnts)
+        main = np.argsort(areas)[-1]
             
         # get blemishes 
         opaque = red(img, cnts)
@@ -134,6 +135,17 @@ for i in loi:
         if show_plot == True:
             plt.subplot(133),plt.imshow(transluscent)
             plt.title('scratches')
+            plt.tight_layout()
             plt.show()
-            
+        
+        blemishes = np.where(transluscent == (0, 0, 255))
+        red_area = np.shape(blemishes)[1]
+        body_area = areas[main]
+        
+        print('failure area = {}'.format(red_area))
+        print('sample area = {}'.format(body_area))
+        print('ratio = {}'.format(red_area / body_area))
+        
         cv.imwrite(outDir + '/' + i, transluscent)
+
+print('done')
