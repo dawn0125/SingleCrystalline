@@ -120,9 +120,9 @@ for i in loi:
         
         if show_plot == True:
             plt.subplot(131), plt.imshow(opaque)
-            plt.title('opaque')
+            plt.title('opaque'), plt.xticks([]), plt.yticks([])
             plt.subplot(132), plt.imshow(transluscent)
-            plt.title('transluscent')
+            plt.title('transluscent'), plt.xticks([]), plt.yticks([])
         
         # find scratches 
         edges = cv.Canny(opaque, 153, 180)
@@ -135,7 +135,7 @@ for i in loi:
         
         if show_plot == True:
             plt.subplot(133),plt.imshow(transluscent)
-            plt.title('scratches')
+            plt.title('scratches'), plt.xticks([]), plt.yticks([])
             plt.tight_layout()
             plt.show()
         
