@@ -10,6 +10,7 @@ import cv2 as cv
 import os 
 import matplotlib.pyplot as plt
 from scipy import ndimage 
+from rembg import remove 
 
 #=============================FUNCTIONS========================================
     
@@ -18,7 +19,7 @@ def threshManual(img, lower, upper):
     thresh according to bins added manually 
     '''
     gray = cv.cvtColor(img, cv.COLOR_BGR2GRAY)
-    ret, thresh = cv.threshold(gray, lower, upper, cv.THRESH_BINARY)
+    ret, thresh = cv.threshold(gray, lower, upper, cv.THRESH_BINARY_INV)
     return thresh
     
 
@@ -29,7 +30,7 @@ def threshOtsu(img):
 
     '''
     gray = cv.cvtColor(img, cv.COLOR_BGR2GRAY)
-    ret, thresh = cv.threshold(gray, 0, 255, cv.THRESH_BINARY + cv.THRESH_OTSU)
+    ret, thresh = cv.threshold(gray, 0, 255, cv.THRESH_BINARY_INV + cv.THRESH_OTSU)
     return thresh
 
 def findContours(img):
@@ -53,19 +54,20 @@ def findAreas(contours):
     for cnt in contours:
         area.append(cv.contourArea(cnt))
     return np.asarray(area)
-    
+
 #=============================MAIN========================================
 # directories
-img_directory = '//wp-oft-nas/HiWis/GM_Dawn_Zheng/Vurgun/SX/Neuer Ordner'
+img_directory = '//wp-oft-nas/HiWis/GM_Dawn_Zheng/Vurgun/SX/Cropped'
 outdir = '//wp-oft-nas/HiWis/GM_Dawn_Zheng/Vurgun/SX/threshim'
+
 #  parameters 
 loi = os.listdir(img_directory)
 acceptedFileTypes = ['tif'] # add more as needed 
 
 # threshing 
 manual_threshing = True
-lower = 125
-upper = 175
+lower = 153
+upper = 181
 
 
 for i in loi:   
@@ -74,29 +76,59 @@ for i in loi:
         img = cv.imread(f)
         testim = img.copy()
         
-        plt.imshow(img)
-        plt.show()
-        
-        bilateral = cv.bilateralFilter(img, 5, 75, 75)
+        # bilateral = cv.bilateralFilter(img, 9, 100, 100)
+        bilateral = ndimage.gaussian_filter(img, 10, mode='nearest')
+
         if manual_threshing == True: 
-            thresh = threshManual(img, lower, upper)
+            thresh = threshManual(bilateral, lower, upper)
         elif manual_threshing == False:
             thresh = threshOtsu(bilateral)
         
-        plt.imshow(thresh)
+
+        
+        
+        cnts, hierarchies = findContours(thresh)
+        areas = findAreas(cnts)
+        a = np.argsort(areas)[-1]
+        parent = hierarchies[:, :, 3][0]
+        
+        # remove bg 
+        sample_only = remove(img, post_process_mask = True, only_mask = True)
+
+        # create empty arrya with the same shape as img
+        red_mask = np.full((img.shape[0], img.shape[1]), fill_value=0, dtype="uint8")
+    
+        # draw contours
+        for j in np.arange(len(areas)):
+            cv.drawContours(red_mask, cnts, j, color = 1, thickness = cv.FILLED)
+
+        # combine contour mask and sample mask 
+        mask = cv.bitwise_and(red_mask, sample_only)
+
+        
+        alpha = 0.25
+        redx, redy = np.where(mask > 0)
+        result = img.copy()
+        result[redx, redy, :] = [0, 0, 255]
+        transluscent = cv.addWeighted(img, 1-alpha, result, alpha, 0)
+        opaque = cv.addWeighted(img, 0, result, 1, 0)
+        
+        plt.imshow(transluscent)
+        plt.title(i)
         plt.show()
         
-        # cnts, hierarchies = findContours(thresh)
-        # areas = findAreas(cnts)
-        # a = np.argsort(areas)[-1]
-        # parent = hierarchies[:, :, 3][0]
+        edges = cv.Canny(opaque, 153, 180)
+        plt.imshow(edges)
+        plt.show()
         
-        # for j in np.arange(len(areas)):
-        #     if areas[j] >= 500: 
-        #         cv.drawContours(testim, cnts[j], -1, (0, 255, 255), 10)
-        #         plt.imshow(testim)
-        #         plt.show()
+        threshold = 10
+        scratches = transluscent.copy()
+        lines = cv.HoughLinesP(edges, 1, np.pi/180, 100, minLineLength = 100, maxLineGap = 10)
         
-        cv.imwrite(outdir + '/' + i, testim)
+        for line in lines:
+            x1, y1, x2, y2 = line[0]
+            cv.line(scratches, (x1, y1), (x2, y2), (0, 0, 255), 3)
+        plt.imshow(scratches)
+        plt.show()
         
-        
+        cv.imwrite(outdir + '/' + i, scratches)
