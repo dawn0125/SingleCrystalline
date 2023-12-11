@@ -55,6 +55,29 @@ def findAreas(contours):
         area.append(cv.contourArea(cnt))
     return np.asarray(area)
 
+def redMask(img, thresh):       
+    '''
+    returns a mask 
+    '''     
+    cnts, hierarchies = findContours(thresh)
+    areas = findAreas(cnts)            
+            
+    sample_mask = remove(img, post_process_mask = True, only_mask = True)
+    mask = np.full((img.shape[0], img.shape[1]), fill_value=0, dtype="uint8")
+    
+    # draw mask of obvious flaws 
+    for j in np.arange(len(areas)):
+        cv.drawContours(mask, cnts, j, color = 1, thickness = cv.FILLED)
+    
+    # combine contour mask and sample mask 
+    mask = cv.bitwise_and(mask, sample_mask)
+    
+    redx, redy = np.where(mask > 0)
+    opaque = img.copy()
+    opaque[redx, redy, :] = [0, 0, 255]
+    
+    return opaque 
+
 #=============================MAIN========================================
 # directories
 img_directory = '//wp-oft-nas/HiWis/GM_Dawn_Zheng/Vurgun/SX/Cropped'
@@ -63,6 +86,8 @@ outdir = '//wp-oft-nas/HiWis/GM_Dawn_Zheng/Vurgun/SX/threshim'
 #  parameters 
 loi = os.listdir(img_directory)
 acceptedFileTypes = ['tif'] # add more as needed 
+opacity = 0.25
+show_plot = True
 
 # threshing 
 manual_threshing = True
@@ -70,65 +95,45 @@ lower = 153
 upper = 181
 
 
+
 for i in loi:   
     if( '.' in i and i.split('.')[-1] in acceptedFileTypes):
+        
+        # open image 
         f = img_directory + '/' + i
         img = cv.imread(f)
-        testim = img.copy()
         
-        # bilateral = cv.bilateralFilter(img, 9, 100, 100)
-        bilateral = ndimage.gaussian_filter(img, 10, mode='nearest')
-
+        # process image 
+        blur = ndimage.gaussian_filter(img, 10, mode='nearest')
+        
         if manual_threshing == True: 
-            thresh = threshManual(bilateral, lower, upper)
+            thresh = threshManual(blur, lower, upper)
         elif manual_threshing == False:
-            thresh = threshOtsu(bilateral)
+            thresh = threshOtsu(blur)
         
-
+        # get blemishes 
+        opaque = redMask(img, thresh)
+        # transluscent is just an output image 
+        transluscent = cv.addWeighted(img, 1-opacity, opaque, opacity, 0)
         
+        if show_plot == True:
+            plt.subplot(131), plt.imshow(opaque)
+            plt.title('opaque')
+            plt.subplot(132), plt.imshow(transluscent)
+            plt.title('transluscent')
         
-        cnts, hierarchies = findContours(thresh)
-        areas = findAreas(cnts)
-        a = np.argsort(areas)[-1]
-        parent = hierarchies[:, :, 3][0]
-        
-        # remove bg 
-        sample_only = remove(img, post_process_mask = True, only_mask = True)
-
-        # create empty arrya with the same shape as img
-        red_mask = np.full((img.shape[0], img.shape[1]), fill_value=0, dtype="uint8")
-    
-        # draw contours
-        for j in np.arange(len(areas)):
-            cv.drawContours(red_mask, cnts, j, color = 1, thickness = cv.FILLED)
-
-        # combine contour mask and sample mask 
-        mask = cv.bitwise_and(red_mask, sample_only)
-
-        
-        alpha = 0.25
-        redx, redy = np.where(mask > 0)
-        result = img.copy()
-        result[redx, redy, :] = [0, 0, 255]
-        transluscent = cv.addWeighted(img, 1-alpha, result, alpha, 0)
-        opaque = cv.addWeighted(img, 0, result, 1, 0)
-        
-        plt.imshow(transluscent)
-        plt.title(i)
-        plt.show()
-        
+        # find scratches 
         edges = cv.Canny(opaque, 153, 180)
-        plt.imshow(edges)
-        plt.show()
-        
-        threshold = 10
-        scratches = transluscent.copy()
         lines = cv.HoughLinesP(edges, 1, np.pi/180, 100, minLineLength = 100, maxLineGap = 10)
         
+        # draw scratches 
         for line in lines:
             x1, y1, x2, y2 = line[0]
-            cv.line(scratches, (x1, y1), (x2, y2), (0, 0, 255), 3)
-        plt.imshow(scratches)
-        plt.show()
+            cv.line(transluscent, (x1, y1), (x2, y2), (0, 0, 255), 3)
         
-        cv.imwrite(outdir + '/' + i, scratches)
+        if show_plot == True:
+            plt.subplot(133),plt.imshow(transluscent)
+            plt.title('scratches')
+            plt.show()
+            
+        # cv.imwrite(outdir + '/' + i, scratches)
