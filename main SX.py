@@ -55,28 +55,22 @@ def findAreas(contours):
         area.append(cv.contourArea(cnt))
     return np.asarray(area)
 
-def redMask(img, thresh):       
-    '''
-    returns a mask 
-    '''     
-    cnts, hierarchies = findContours(thresh)
-    areas = findAreas(cnts)            
-            
+def red(img, cnts):
     sample_mask = remove(img, post_process_mask = True, only_mask = True)
-    mask = np.full((img.shape[0], img.shape[1]), fill_value=0, dtype="uint8")
     
-    # draw mask of obvious flaws 
+    # create contour mask
+    cnt_mask = np.full((img.shape[0], img.shape[1]), fill_value=0, dtype="uint8") 
     for j in np.arange(len(areas)):
-        cv.drawContours(mask, cnts, j, color = 1, thickness = cv.FILLED)
-    
-    # combine contour mask and sample mask 
-    mask = cv.bitwise_and(mask, sample_mask)
+        cv.drawContours(cnt_mask, cnts, j, color = 1, thickness = cv.FILLED)
+        
+    # combine masks 
+    mask = cv.bitwise_and(cnt_mask, sample_mask)
     
     redx, redy = np.where(mask > 0)
     opaque = img.copy()
     opaque[redx, redy, :] = [0, 0, 255]
     
-    return opaque 
+    return opaque
 
 #=============================MAIN========================================
 # directories
@@ -94,8 +88,6 @@ manual_threshing = True
 lower = 153
 upper = 181
 
-
-
 for i in loi:   
     if( '.' in i and i.split('.')[-1] in acceptedFileTypes):
         
@@ -111,8 +103,11 @@ for i in loi:
         elif manual_threshing == False:
             thresh = threshOtsu(blur)
         
+        cnts, _ = findContours(thresh)
+        areas = findAreas(cnts)            
+            
         # get blemishes 
-        opaque = redMask(img, thresh)
+        opaque = red(img, cnts)
         # transluscent is just an output image 
         transluscent = cv.addWeighted(img, 1-opacity, opaque, opacity, 0)
         
