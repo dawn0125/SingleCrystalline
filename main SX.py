@@ -74,11 +74,12 @@ def red(img, cnts):
 
 #=============================MAIN========================================
 # directories
-img_directory = '//wp-oft-nas/HiWis/GM_Dawn_Zheng/Vurgun/SX/Cropped'
-outdir = '//wp-oft-nas/HiWis/GM_Dawn_Zheng/Vurgun/SX/threshim'
+imgDir = '//wp-oft-nas/HiWis/GM_Dawn_Zheng/Vurgun/SX/Cropped'
+outDir = '//wp-oft-nas/HiWis/GM_Dawn_Zheng/Vurgun/SX/threshim'
+excelDir = ''
 
 #  parameters 
-loi = os.listdir(img_directory)
+loi = os.listdir(imgDir)
 acceptedFileTypes = ['tif'] # add more as needed 
 opacity = 0.25
 show_plot = True
@@ -88,11 +89,15 @@ manual_threshing = True
 lower = 153
 upper = 181
 
+
+if not os.path.exists(outDir):
+    os.makedirs(outDir)
+
 for i in loi:   
     if( '.' in i and i.split('.')[-1] in acceptedFileTypes):
         
         # open image 
-        f = img_directory + '/' + i
+        f = imgDir + '/' + i
         img = cv.imread(f)
         
         # process image 
@@ -131,4 +136,4 @@ for i in loi:
             plt.title('scratches')
             plt.show()
             
-        # cv.imwrite(outdir + '/' + i, scratches)
+        cv.imwrite(outDir + '/' + i, transluscent)
