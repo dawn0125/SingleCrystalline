@@ -99,6 +99,7 @@ for i in loi:
         # open image 
         f = imgDir + '/' + i
         img = cv.imread(f)
+        print('\nProcessing ' + i)
         
         # process image 
         blur = ndimage.gaussian_filter(img, 10, mode='nearest')
@@ -138,11 +139,11 @@ for i in loi:
             plt.tight_layout()
             plt.show()
         
-        blemishes = np.where(transluscent == (0, 0, 255))
+        blemishes = np.where(opaque == (0, 0, 255))
         red_area = np.shape(blemishes)[1]
         body_area = areas[main]
         
-        print('failure area = {}'.format(red_area))
+        print('\nfailure area = {}'.format(red_area))
         print('sample area = {}'.format(body_area))
         print('ratio = {}'.format(red_area / body_area))
         
