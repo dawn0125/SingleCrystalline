@@ -23,3 +23,5 @@ The script aims to return the full area of the body, the percentage error of red
   - conda install scipy
 
 ### How to Use: ###
+- change imgDir, outDir, excelDir, and scale
+- run
