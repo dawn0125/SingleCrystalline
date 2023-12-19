@@ -1,6 +1,6 @@
 ## Failure Detection ## 
 ### Purpose ###
-The purpose of this script is to detect faulty areas in the print-job and colour-code them based on severity:
+This script aims to detect faulty areas in the print-job and colour-code them based on severity:
 - obvious cracks and marks are red
 - areas with miniature scratches that are more than 14 degrees from the vertical are yellow
 - rest is green
